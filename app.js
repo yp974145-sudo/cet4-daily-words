@@ -108,6 +108,22 @@ function renderMemory(word, meaning, text) {
   $(text).textContent = memoryTips[word] || EXTRA_MEMORY_TIPS[word] ||
     ('先听一遍，再用「' + gloss + '」给自己设个中文提示。遮住释义，看着 ' + word + ' 回想一遍。');
 }
+function renderSynonyms(word, sectionId) {
+  const section = $(sectionId);
+  const pairs = CET4_SYNONYMS.get(word) ?? [];
+  const list = section.querySelector('ul');
+  list.replaceChildren(...pairs.map(({sense, original, replacement}) => {
+    const item = document.createElement('li');
+    const phrases = document.createElement('span');
+    phrases.lang = 'en';
+    phrases.textContent = original + ' ↔ ' + replacement;
+    const meaning = document.createElement('small');
+    meaning.textContent = sense;
+    item.append(phrases, meaning);
+    return item;
+  }));
+  section.hidden = pairs.length === 0;
+}
 function renderStats() {
   $('today-count').textContent = Object.keys(state.day.answered).length;
   $('due-count').textContent = dueIds().length;
@@ -156,6 +172,7 @@ function renderStudy() {
   $('verdict').textContent = rated ? verdicts[rated.rating ?? (rated.known ? 'known' : 'again')] : '中文释义';
   $('meaning').textContent = meaning;
   renderMemory(word, meaning, 'memory-text');
+  renderSynonyms(word, 'word-synonyms');
   $('source-word').href = source(id);
   if (rated) $('schedule-note').textContent = rated.note;
 }
@@ -239,26 +256,37 @@ function undoRating() {
 function stopAudio() {
   if (playback) {
     playback.audio.pause();
+    if (playback.objectUrl) URL.revokeObjectURL(playback.objectUrl);
     delete playback.button.dataset.playing;
     playback = null;
   }
   $('audio-note').hidden = true;
   $('detail-audio-note').hidden = true;
 }
-function play(id, button, message) {
+async function play(id, button, message) {
   stopAudio();
   if (!id) return;
-  const audio = new Audio('audio/' + id + '.mp3');
+  const audio = new Audio();
   const request = {audio, button};
   playback = request;
   button.dataset.playing = 'true';
   audio.addEventListener('ended', () => { if (playback === request) stopAudio(); }, {once:true});
-  audio.play().catch(() => {
+  try {
+    if (window.readPackedAudio) {
+      const clip = await window.readPackedAudio(id);
+      if (playback !== request) return;
+      request.objectUrl = URL.createObjectURL(clip);
+      audio.src = request.objectUrl;
+    } else {
+      audio.src = 'audio/' + id + '.mp3';
+    }
+    await audio.play();
+  } catch {
     if (playback !== request) return;
     stopAudio();
     message.textContent = '音频暂时无法播放，点一下重试。';
     message.hidden = false;
-  });
+  }
 }
 function favorite(id) {
   if (!id) return;
@@ -311,6 +339,7 @@ function openDetail(id) {
   $('detail-meaning').textContent = meaning;
   $('detail-source').href = source(id);
   renderMemory(word, meaning, 'detail-memory-text');
+  renderSynonyms(word, 'detail-synonyms');
   renderDetailStar();
   $('details').showModal();
 }

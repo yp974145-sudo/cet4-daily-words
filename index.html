@@ -6,10 +6,12 @@
   <meta name="theme-color" content="#f6f8f4">
   <meta name="description" content="1612 个四级高频词，随身背词和间隔复习。">
   <title>四级每日背词</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <script defer src="words.js"></script>
   <script defer src="word-help.js"></script>
-  <script defer src="app.js?v=2"></script>
+  <script defer src="synonyms.js"></script>
+  <script defer src="audio-bank.js"></script>
+  <script defer src="app.js?v=3"></script>
 </head>
 <body>
   <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -48,6 +50,7 @@
           <div class="answer-title"><span id="verdict">中文释义</span><span>原词表</span></div>
           <p id="meaning"></p>
           <div class="memory"><strong>助记</strong><p id="memory-text"></p></div>
+          <section class="memory synonyms" id="word-synonyms" hidden><strong>四级同义替换</strong><ul></ul></section>
           <a id="source-word" target="_blank" rel="noopener noreferrer">完整词条与真题例句 ↗</a>
         </div>
       </article>
@@ -102,6 +105,7 @@
     <p id="detail-audio-note" class="hint" role="status" hidden></p>
     <p id="detail-meaning" class="detail-meaning"></p>
     <div class="memory"><strong>助记</strong><p id="detail-memory-text"></p></div>
+    <section class="memory synonyms" id="detail-synonyms" hidden><strong>四级同义替换</strong><ul></ul></section>
     <div class="detail-actions"><button type="button" id="detail-star" class="button secondary">收藏</button><a id="detail-source" target="_blank" rel="noopener noreferrer">查看完整词条 ↗</a></div>
   </dialog>
 </body>

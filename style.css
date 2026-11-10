@@ -28,3 +28,11 @@ dialog .pronunciation{justify-content:flex-start}
 .goal-form{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:13px;color:var(--muted)}
 .goal-form input{width:82px;min-height:44px;border:1px solid #bfd5c8;border-radius:10px;padding:6px 8px;color:var(--ink);font-size:16px}
 .goal-form .button{min-height:44px}
+
+.synonyms{background:#f1f4fb}
+.synonyms strong{color:#315580}
+.synonyms ul{list-style:none;padding:0;margin:3px 0 0}
+.synonyms li{padding:3px 0;overflow-wrap:anywhere}
+.synonyms li+li{border-top:1px solid #dae3f0;margin-top:3px}
+.synonyms li span{font-weight:650}
+.synonyms li small{display:block;color:var(--muted);font-size:12px}
