@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f8f4">
+  <meta name="description" content="1612 个四级高频词，随身背词和间隔复习。">
+  <title>四级每日背词</title>
+  <link rel="stylesheet" href="style.css?v=2">
+  <script defer src="words.js"></script>
+  <script defer src="word-help.js"></script>
+  <script defer src="app.js?v=2"></script>
+</head>
+<body>
+  <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6c-3-3-7-3-10-2v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 2v15"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 10h8m-8 4h5"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16M9 15v-3m5 3V8m5 7V5"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9H3zm13 0a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 3 7M4 5v6h6"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></symbol>
+  </svg>
+  <header class="top"><div class="top-inner">
+    <div class="brand"><div class="logo" aria-hidden="true">Aa</div><div><strong>四级每日背词</strong><small>CET-4 高频词库</small></div></div>
+    <span class="date" id="date"></span>
+  </div></header>
+
+  <main>
+    <section id="study" class="page">
+      <div class="intro"><div class="kicker"><span></span> DAILY PRACTICE</div><h1>今日背词</h1><p>先回想中文意思，再选熟悉程度。</p></div>
+      <div class="stats" aria-label="今日计划">
+        <div class="stat"><span>今日已学</span><strong id="today-count">0</strong></div>
+        <div class="stat"><span>到期复习</span><strong id="due-count">0</strong></div>
+        <div class="stat"><span>今日剩余新词</span><strong id="new-count">0</strong></div>
+      </div>
+      <div class="study-tools"><button type="button" id="undo" class="peek" disabled>← 返回上一词</button><button type="button" id="study-goal" class="peek"></button></div>
+      <div class="round" id="round"><div class="round-label"><span id="mode-label">今日计划</span><span id="round-count"></span></div><progress id="round-progress" max="1" value="0"></progress></div>
+      <article class="card" id="card">
+        <div class="card-top"><div class="tags"><span id="word-kind"></span><span id="word-level"></span></div><button id="favorite" class="icon-button" type="button" aria-label="收藏单词" aria-pressed="false"><svg><use href="#i-star"/></svg></button></div>
+        <h2 lang="en" id="word"></h2>
+        <div class="pronunciation"><span class="ipa" id="word-ipa" aria-label="美式音标"></span><button id="listen" type="button" class="sound"><svg><use href="#i-sound"/></svg><span>美式发音</span></button></div>
+        <p class="hint" id="audio-note" role="status" hidden></p>
+        <p id="word-meta" class="word-meta"></p>
+        <button id="peek" class="peek" type="button">先看释义</button>
+        <div class="answer" id="answer" hidden>
+          <div class="answer-title"><span id="verdict">中文释义</span><span>原词表</span></div>
+          <p id="meaning"></p>
+          <div class="memory"><strong>助记</strong><p id="memory-text"></p></div>
+          <a id="source-word" target="_blank" rel="noopener noreferrer">完整词条与真题例句 ↗</a>
+        </div>
+      </article>
+      <div class="actions" id="choices">
+        <button type="button" id="again" class="button secondary"><svg><use href="#i-repeat"/></svg>不认识</button>
+        <button type="button" id="fuzzy" class="button fuzzy">模糊</button>
+        <button type="button" id="known" class="button primary"><svg><use href="#i-check"/></svg>认识</button>
+      </div>
+      <div id="advance" hidden><p class="hint" id="schedule-note"></p><button type="button" class="button primary wide" id="next">下一个单词 <span aria-hidden="true">→</span></button></div>
+      <article id="complete" class="card complete" hidden>
+        <div class="finish-icon"><svg><use href="#i-check"/></svg></div><h2 id="complete-title">今日计划完成</h2><p id="complete-description"></p>
+        <button type="button" id="resume" class="button primary wide" hidden>继续今日计划</button>
+        <button type="button" id="extra" class="button secondary wide" hidden>加学 10 个新词</button>
+      </article>
+    </section>
+
+    <section id="library" class="page" hidden>
+      <div class="intro"><div class="kicker"><span></span> WORD LIST</div><h1>四级词库</h1><p>按真题句频排列，共 1,612 个单词。</p></div>
+      <label class="search"><svg><use href="#i-search"/></svg><input id="search" type="search" autocomplete="off" placeholder="搜英文单词或中文释义" aria-label="搜索单词"></label>
+      <div class="filters" aria-label="筛选词库">
+        <button type="button" data-filter="all" aria-pressed="true">全部</button>
+        <button type="button" data-filter="hard" aria-pressed="false">生词</button>
+        <button type="button" data-filter="star" aria-pressed="false">收藏</button>
+      </div>
+      <div class="list-head"><span id="results"></span><button type="button" id="practice-hard" class="peek" hidden>练这组</button></div>
+      <div id="word-list"></div><button type="button" class="button secondary wide" id="more" hidden>加载更多</button>
+    </section>
+
+    <section id="progress" class="page" hidden>
+      <div class="intro"><div class="kicker"><span></span> YOUR PROGRESS</div><h1>学习进度</h1><p>回顾今天学了多少，还有哪些词要复习。</p></div>
+      <div class="panel"><div class="panel-head"><h2>词库覆盖</h2><strong id="coverage"></strong></div><progress id="coverage-bar" max="1612" value="0"></progress><div class="progress-grid" id="progress-grid"></div></div>
+      <div class="panel"><h2>每天的新词量</h2><p>到期的词优先复习，新词按真题句频从高到低加入。</p><div class="filters" id="goals" aria-label="每天的新词量">
+        <button type="button" data-goal="10">10 个</button><button type="button" data-goal="20">20 个</button><button type="button" data-goal="30">30 个</button><button type="button" data-goal="50">50 个</button>
+      </div>
+      <form id="goal-form" class="goal-form"><label for="custom-goal">自定义</label><input id="custom-goal" type="number" min="0" max="1612" step="1" inputmode="numeric" required><span>个／天</span><button class="button primary" type="submit">保存</button></form>
+      <p id="goal-note" role="status">可填 0–1612，填 0 就只复习。</p></div>
+      <div class="panel"><h2>复习怎么排</h2><p>选「认识」后，按 1、3、7、14、30、60 天逐步拉长间隔。选「模糊」或「不认识」后，本轮会再练一次，「不认识」会排得更靠前。第二次仍选「模糊」的词明天复习，仍选「不认识」的词 10 分钟后到期。</p><p>学习记录保存在当前浏览器。更换设备或清理浏览器数据会影响进度。</p></div>
+      <footer>词汇来源 <a href="https://english-exam.lazynote.cn/cet4/words/stats/frequency/" target="_blank" rel="noopener noreferrer">懒笔记《英语四级高频词总榜》↗</a><br>音标主要来自 <a href="https://github.com/open-dict-data/ipa-dict" target="_blank" rel="noopener noreferrer">IPA Dictionary</a>（基于 CMUdict）· <a href="ipa-license.txt" target="_blank" rel="noopener">许可</a></footer>
+    </section>
+    <p id="storage-note" class="hint" role="status" hidden>当前浏览器无法保存学习记录，刷新后可能丢失进度。</p>
+  </main>
+
+  <nav aria-label="主要功能"><div class="nav-inner">
+    <button type="button" data-page="study" aria-current="page"><svg><use href="#i-card"/></svg>背单词</button>
+    <button type="button" data-page="library"><svg><use href="#i-book"/></svg>词库</button>
+    <button type="button" data-page="progress"><svg><use href="#i-chart"/></svg>进度</button>
+  </div></nav>
+  <dialog id="details">
+    <div class="detail-top"><span id="detail-meta"></span><form method="dialog"><button class="icon-button" aria-label="关闭词条" autofocus>×</button></form></div>
+    <h2 id="detail-word" lang="en"></h2>
+    <div class="pronunciation"><span class="ipa" id="detail-ipa" aria-label="美式音标"></span><button id="detail-audio" type="button" class="sound"><svg><use href="#i-sound"/></svg><span>美式发音</span></button></div>
+    <p id="detail-audio-note" class="hint" role="status" hidden></p>
+    <p id="detail-meaning" class="detail-meaning"></p>
+    <div class="memory"><strong>助记</strong><p id="detail-memory-text"></p></div>
+    <div class="detail-actions"><button type="button" id="detail-star" class="button secondary">收藏</button><a id="detail-source" target="_blank" rel="noopener noreferrer">查看完整词条 ↗</a></div>
+  </dialog>
+</body>
+</html>
