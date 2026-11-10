@@ -275,6 +275,7 @@ observe|注意到规律|observe a pattern|notice a pattern
 establish|建立制度|establish a system|set up a system
 generate|产生收入|generate income|bring in income
 `.trim().split('\n').reduce((entries, line) => {
+  const [word, sense, original, replacement] = line.split('|');
   if (!entries.has(word)) entries.set(word, []);
   entries.get(word).push({sense, original, replacement});
   return entries;

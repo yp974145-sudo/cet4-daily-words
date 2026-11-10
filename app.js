@@ -62,8 +62,18 @@ function save() {
   catch { $('storage-note').hidden = false; }
 }
 function ensureDay() {
-  if (state.day?.key === today()) return;
-  state.day = {key:today(), newCount:0, extra:0, answered:{}};
+  if (state.day?.key === today()) {
+    if (!state.day.retry) {
+      // Recover pending cards from the previous queue and its short-delay records.
+      state.day.retry = Object.fromEntries(Object.keys(state.day.answered)
+        .filter(id => state.session?.queue.includes(Number(id)) ||
+          (state.records[id]?.hard && state.records[id].due < reviewDate(1)))
+        .map(id => [id, true]));
+      save();
+    }
+    return;
+  }
+  state.day = {key:today(), newCount:0, extra:0, answered:{}, retry:{}};
   state.session = null;
   revealed = false;
   save();
@@ -71,7 +81,7 @@ function ensureDay() {
 function dueIds() {
   const now = Date.now();
   return Object.entries(state.records)
-    .filter(([id, record]) => byId.has(Number(id)) && record.due <= now)
+    .filter(([id, record]) => byId.has(Number(id)) && !state.day.answered[id] && record.due <= now)
     .sort((a, b) => a[1].due - b[1].due || Number(a[0]) - Number(b[0]))
     .map(([id]) => Number(id));
 }
@@ -83,17 +93,19 @@ function freshIds() {
   return WORDS.filter(([id]) => !state.records[id]).slice(0, newLeft()).map(([id]) => id);
 }
 function makeSession(ids, mode = 'daily') {
-  state.session = {mode, queue:ids, total:ids.length, misses:{}, rated:null};
+  state.session = {mode, queue:ids, total:ids.length, rated:null};
   revealed = false;
   save();
 }
 function startDaily() {
-  makeSession([...dueIds(), ...freshIds()]);
+  const retry = Object.keys(state.day.retry).map(Number);
+  makeSession([...retry, ...dueIds(), ...freshIds()]);
 }
 function refreshDaily() {
   ensureDay();
   const session = state.session;
-  if (!session || (session.mode === 'daily' && !session.rated && !session.queue.length && (dueIds().length || newLeft()))) {
+  if (!session || (session.mode === 'daily' && !session.rated && !session.queue.length &&
+      (Object.keys(state.day.retry).length || dueIds().length || newLeft()))) {
     startDaily();
   }
 }
@@ -145,10 +157,7 @@ function renderStudy() {
   if (!id) {
     const isDaily = session.mode === 'daily';
     $('complete-title').textContent = isDaily ? '今日计划完成' : '这组练完了';
-    const pending = Object.values(state.records).filter(r => r.hard && r.due > Date.now() && r.due <= Date.now() + 600000).length;
-    $('complete-description').textContent = pending
-      ? '有 ' + pending + ' 个生词将在 10 分钟内到期，可以过一会儿回来练。'
-      : '今日已练 ' + Object.keys(state.day.answered).length + ' 个词。';
+    $('complete-description').textContent = '今日已练 ' + Object.keys(state.day.answered).length + ' 个词。';
     $('resume').hidden = isDaily;
     $('extra').hidden = !isDaily || Object.keys(state.records).length >= WORDS.length;
     return;
@@ -159,8 +168,8 @@ function renderStudy() {
   $('round-count').textContent = '已完成 ' + finished + ' / ' + session.total;
   $('round-progress').max = Math.max(1, session.total);
   $('round-progress').value = finished;
-  const retry = rated && session.undo ? session.undo.misses : session.misses[id];
-  $('word-kind').textContent = retry ? '再练一次' : (state.records[id] && !rated?.isNew) ? '复习词' : '新词';
+  const retry = rated ? session.undo?.answered : state.day.answered[id];
+  $('word-kind').textContent = retry ? '当日再记' : (state.records[id] && !rated?.isNew) ? '复习词' : '新词';
   $('word-level').textContent = level;
   $('word').textContent = word;
   $('word-ipa').textContent = WORD_IPA[id];
@@ -168,7 +177,7 @@ function renderStudy() {
   $('favorite').setAttribute('aria-pressed', Boolean(state.stars[id]));
   $('answer').hidden = !shown;
   $('peek').hidden = shown;
-  const verdicts = {known:'认识 · 核对释义', fuzzy:'模糊 · 再确认一下', again:'不认识 · 记一下'};
+  const verdicts = {known:'认识 · 核对释义', fuzzy:'模糊 · 再确认一下', again:'忘记 · 记一下'};
   $('verdict').textContent = rated ? verdicts[rated.rating ?? (rated.known ? 'known' : 'again')] : '中文释义';
   $('meaning').textContent = meaning;
   renderMemory(word, meaning, 'memory-text');
@@ -192,34 +201,47 @@ function reviewDate(days) {
   due.setHours(0, 0, 0, 0);
   return due.getTime();
 }
+function firstReview(previous, rating) {
+  const priorStage = previous?.stage ?? -1;
+  if (rating === 'known') {
+    const stage = Math.min(priorStage + 1, intervals.length - 1);
+    return {stage, days:intervals[stage]};
+  }
+  if (rating === 'fuzzy') {
+    const stage = Math.max(-1, priorStage - 1);
+    return {stage, days:Math.min(3, Math.max(1, priorStage))};
+  }
+  return {stage:-1, days:1};
+}
+function reviewIntervalLabel(days) {
+  return days === 1 ? '明天复习' : days + ' 天后复习';
+}
 function rate(rating) {
   const session = state.session;
   if (!session || session.rated || !session.queue.length) return;
   const id = session.queue[0];
   const previous = state.records[id];
   const isNew = !previous;
+  const answered = !!state.day.answered[id];
   session.undo = {id, previous:previous ?? null, queue:session.queue.slice(),
-    total:session.total, misses:session.misses[id] ?? null, answered:!!state.day.answered[id],
+    total:session.total, retry:!!state.day.retry[id], answered,
     newCount:state.day.newCount, goal:state.goal, revealed};
   session.queue.shift();
-  let note;
+  let days = null;
+  if (!answered || !previous) {
+    const next = firstReview(previous, rating);
+    days = next.days;
+    state.records[id] = {stage:next.stage, due:reviewDate(days), hard:rating !== 'known'};
+  }
+  let note = days ? reviewIntervalLabel(days) : '今天这张记住了';
   if (rating === 'known') {
-    const stage = Math.min((previous?.stage ?? -1) + 1, intervals.length - 1);
-    const days = intervals[stage];
-    state.records[id] = {stage, due:reviewDate(days), hard:false};
-    note = days + ' 天后复习';
+    delete state.day.retry[id];
   } else {
-    const fuzzy = rating === 'fuzzy';
-    const misses = (session.misses[id] ?? 0) + 1;
-    session.misses[id] = misses;
-    const stage = fuzzy ? Math.max(-1, (previous?.stage ?? -1) - 1) : -1;
-    state.records[id] = {stage, due:fuzzy ? reviewDate(1) : Date.now() + 600000, hard:true};
-    if (misses === 1) {
-      session.queue.splice(fuzzy ? 6 : 3, 0, id);
-      note = '这个词稍后会在本轮再出现一次';
-    } else {
-      note = fuzzy ? '明天再复习' : '10 分钟后重新进入复习';
-    }
+    const gap = Math.min(session.queue.length, rating === 'fuzzy' ? 6 : 3);
+    session.queue.splice(gap, 0, id);
+    state.day.retry[id] = true;
+    note = gap ? '过 ' + gap + ' 张卡再试一次' : '本组只剩这张卡，记一下再试';
+    if (days) note += ' · ' + reviewIntervalLabel(days);
   }
   if (isNew) state.day.newCount++;
   state.day.answered[id] = true;
@@ -241,8 +263,8 @@ function undoRating() {
   if (undo.answered) state.day.answered[id] = true;
   else delete state.day.answered[id];
   state.day.newCount = undo.newCount;
-  if (undo.misses === null) delete session.misses[id];
-  else session.misses[id] = undo.misses;
+  if (undo.retry ?? (undo.misses != null)) state.day.retry[id] = true;
+  else delete state.day.retry[id];
   session.queue = undo.queue;
   session.total = undo.total;
   session.rated = null;
