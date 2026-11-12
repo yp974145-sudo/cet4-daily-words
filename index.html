@@ -11,7 +11,7 @@
   <script defer src="word-help.js"></script>
   <script defer src="synonyms.js"></script>
   <script defer src="audio-bank.js"></script>
-  <script defer src="app.js?v=4"></script>
+  <script defer src="app.js?v=5"></script>
 </head>
 <body>
   <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -37,7 +37,7 @@
         <div class="stat"><span>到期复习</span><strong id="due-count">0</strong></div>
         <div class="stat"><span>今日剩余新词</span><strong id="new-count">0</strong></div>
       </div>
-      <div class="study-tools"><button type="button" id="undo" class="peek" disabled>← 返回上一词</button><button type="button" id="study-goal" class="peek"></button></div>
+      <div class="study-tools"><button type="button" id="undo" class="peek" disabled>← 查看上一词</button><button type="button" id="study-goal" class="peek"></button></div>
       <div class="round" id="round"><div class="round-label"><span id="mode-label">今日计划</span><span id="round-count"></span></div><progress id="round-progress" max="1" value="0"></progress></div>
       <article class="card" id="card">
         <div class="card-top"><div class="tags"><span id="word-kind"></span><span id="word-level"></span></div><button id="favorite" class="icon-button" type="button" aria-label="收藏单词" aria-pressed="false"><svg><use href="#i-star"/></svg></button></div>
@@ -87,7 +87,7 @@
       </div>
       <form id="goal-form" class="goal-form"><label for="custom-goal">自定义</label><input id="custom-goal" type="number" min="0" max="1612" step="1" inputmode="numeric" required><span>个／天</span><button class="button primary" type="submit">保存</button></form>
       <p id="goal-note" role="status">可填 0–1612，填 0 就只复习。</p></div>
-      <div class="panel"><h2>复习怎么排</h2><p>每个词今天第一次怎么选，决定下次哪天复习。「认识」会逐步拉长间隔，「模糊」安排在 1–3 天后，「忘记」安排明天复习。</p><p>选「模糊」或「忘记」，今天会继续遇到这个词，直到选「认识」。「忘记」通常隔 3 张卡，「模糊」通常隔 6 张卡。队列剩余的卡片较少时会提前出现。</p><p>学习记录保存在当前浏览器。更换设备或清理浏览器数据会影响进度。</p></div>
+      <div class="panel"><h2>复习怎么排</h2><p>每个词今天第一次怎么选，决定下次哪天复习。「认识」会逐步拉长间隔，「模糊」安排在 1–3 天后，「忘记」安排明天复习。</p><p>选「模糊」或「忘记」，今天会继续遇到这个词，直到选「认识」。「忘记」通常隔 3 张卡，「模糊」通常隔 6 张卡。队列剩余的卡片较少时会提前出现。</p><p>每次作答自动保存；重新打开或跨天后，先接着未完成的位置学。查看上一词可以回看当时的选择、音标、发音和助记，不会撤销记录。学习记录保存在当前浏览器，请使用同一个浏览器打开；更换设备、无痕浏览或清理浏览器数据可能导致无法恢复。</p></div>
       <footer>词汇来源 <a href="https://english-exam.lazynote.cn/cet4/words/stats/frequency/" target="_blank" rel="noopener noreferrer">懒笔记《英语四级高频词总榜》↗</a><br>音标主要来自 <a href="https://github.com/open-dict-data/ipa-dict" target="_blank" rel="noopener noreferrer">IPA Dictionary</a>（基于 CMUdict）· <a href="ipa-license.txt" target="_blank" rel="noopener">许可</a></footer>
     </section>
     <p id="storage-note" class="hint" role="status" hidden>当前浏览器无法保存学习记录，刷新后可能丢失进度。</p>
