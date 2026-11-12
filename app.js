@@ -41,7 +41,7 @@ function today() {
   return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-');
 }
 function readState() {
-  const fresh = {goal:20, records:{}, stars:{}, day:null, session:null};
+  const fresh = {goal:20, records:{}, stars:{}, day:null, session:null, history:[]};
   try {
     const stored = JSON.parse(localStorage.getItem(storageKey));
     return stored && typeof stored === 'object' ? {...fresh, ...stored} : fresh;
@@ -54,11 +54,12 @@ let page = 'study';
 let filter = 'all';
 let limit = 35;
 let detailId = null;
-let revealed = false;
+let revealed = !!state.session?.revealed;
 let playback = null;
 
 function save() {
-  try { localStorage.setItem(storageKey, JSON.stringify(state)); }
+  if (state.session) state.session.revealed = revealed;
+  try { localStorage.setItem(storageKey, JSON.stringify(state)); $('storage-note').hidden = true; }
   catch { $('storage-note').hidden = false; }
 }
 function ensureDay() {
@@ -73,9 +74,10 @@ function ensureDay() {
     }
     return;
   }
-  state.day = {key:today(), newCount:0, extra:0, answered:{}, retry:{}};
-  state.session = null;
-  revealed = false;
+  const pending = state.session && (state.session.rated || state.session.queue.length);
+  const retry = pending ? {...state.day?.retry} : {};
+  state.day = {key:today(), newCount:0, extra:0, answered:{}, retry};
+  if (!pending) { state.session = null; revealed = false; }
   save();
 }
 function dueIds() {
@@ -147,7 +149,10 @@ function renderStudy() {
   const id = currentId();
   const rated = session.rated;
   const shown = !!rated || revealed;
-  $('undo').disabled = !session.undo;
+  $('undo').disabled = !previousEntries().length;
+  $('undo').textContent = '← 查看上一词';
+  $('save-status').textContent = session.rated || session.queue.length
+    ? '自动保存学习位置 · 下次打开接着学' : '本轮进度已保存';
   $('study-goal').textContent = '新词量 ' + state.goal + ' 个／天 · 修改';
   $('card').hidden = !id;
   $('round').hidden = !id;
@@ -246,34 +251,41 @@ function rate(rating) {
   if (isNew) state.day.newCount++;
   state.day.answered[id] = true;
   session.rated = {id, rating, isNew, note};
+  state.records[id].lastRating = rating;
+  state.records[id].lastRatedAt = Date.now();
+  state.history ??= [];
+  state.history.push({id, rating, note, at:Date.now()});
+  state.history = state.history.slice(-2000);
   save();
   renderStudy();
   if ($('next').getBoundingClientRect().bottom > window.innerHeight - 64) {
     $('next').scrollIntoView({block:'end'});
   }
 }
-function undoRating() {
-  const session = state.session;
-  const undo = session?.undo;
-  if (!undo) return;
-  stopAudio();
-  const {id} = undo;
-  if (undo.previous) state.records[id] = undo.previous;
-  else delete state.records[id];
-  if (undo.answered) state.day.answered[id] = true;
-  else delete state.day.answered[id];
-  state.day.newCount = undo.newCount;
-  if (undo.retry ?? (undo.misses != null)) state.day.retry[id] = true;
-  else delete state.day.retry[id];
-  session.queue = undo.queue;
-  session.total = undo.total;
-  session.rated = null;
-  session.undo = null;
-  if (state.goal !== undo.goal) resizeDailyQueue(id);
-  revealed = undo.revealed && currentId() === id;
-  save();
-  renderStudy();
-  window.scrollTo(0, 0);
+let historyEntries = [];
+let historyIndex = -1;
+const ratingLabels = {known:'认识', fuzzy:'模糊', again:'忘记'};
+function previousEntries() {
+  const entries = (state.history || []).filter(entry => byId.has(entry.id));
+  // A rated card is still on screen until Next is pressed.
+  if (state.session?.rated && entries.at(-1)?.id === currentId()) return entries.slice(0, -1);
+  return entries;
+}
+function viewPrevious() {
+  historyEntries = previousEntries();
+  if (!historyEntries.length) return;
+  historyIndex = historyEntries.length - 1;
+  showHistory();
+}
+function showHistory() {
+  const entry = historyEntries[historyIndex];
+  openDetail(entry.id);
+  $('detail-meta').textContent = '学习记录 ' + (historyIndex + 1) + ' / ' + historyEntries.length;
+  $('detail-rating').textContent = '当时选择：' + ratingLabels[entry.rating] +
+    ' · ' + new Date(entry.at).toLocaleString('zh-CN') + '。' + entry.note;
+  $('history-controls').hidden = false;
+  $('history-older').disabled = historyIndex === 0;
+  $('history-newer').disabled = historyIndex === historyEntries.length - 1;
 }
 function stopAudio() {
   if (playback) {
@@ -354,7 +366,13 @@ function renderDetailStar() {
 }
 function openDetail(id) {
   const [, word, level, meaning, count] = byId.get(id);
+  stopAudio();
   detailId = id;
+  $('history-controls').hidden = true;
+  const record = state.records[id];
+  $('detail-rating').textContent = record?.lastRating
+    ? '上次选择：' + ratingLabels[record.lastRating] + ' · ' + new Date(record.lastRatedAt).toLocaleString('zh-CN')
+    : '暂无选择记录';
   $('detail-meta').textContent = level + ' · 真题出现 ' + count + ' 句';
   $('detail-word').textContent = word;
   $('detail-ipa').textContent = WORD_IPA[id];
@@ -363,7 +381,7 @@ function openDetail(id) {
   renderMemory(word, meaning, 'detail-memory-text');
   renderSynonyms(word, 'detail-synonyms');
   renderDetailStar();
-  $('details').showModal();
+  if (!$('details').open) $('details').showModal();
 }
 function renderProgress() {
   const values = Object.values(state.records);
@@ -426,11 +444,37 @@ function show(nextPage, scroll = true) {
   if (scroll) window.scrollTo(0, 0);
 }
 
-$('peek').onclick = () => { revealed = true; renderStudy(); };
+// Additive UI keeps compatibility with an already cached HTML page.
+const saveStatus = document.createElement('p');
+saveStatus.id = 'save-status';
+saveStatus.className = 'hint';
+$('study-goal').parentElement.after(saveStatus);
+const detailRating = document.createElement('p');
+detailRating.id = 'detail-rating';
+detailRating.className = 'hint';
+$('detail-meaning').before(detailRating);
+const historyControls = document.createElement('div');
+historyControls.id = 'history-controls';
+historyControls.className = 'detail-actions';
+historyControls.style.flexWrap = 'wrap';
+historyControls.hidden = true;
+historyControls.innerHTML = '<button type="button" id="history-older" class="button secondary">← 更早一词</button><button type="button" id="history-newer" class="button secondary">后一词 →</button><button type="button" id="history-close" class="button primary">继续学习</button>';
+$('details').append(historyControls);
+$('history-older').onclick = () => { if (historyIndex > 0) { historyIndex--; showHistory(); } };
+$('history-newer').onclick = () => { if (historyIndex < historyEntries.length - 1) { historyIndex++; showHistory(); } };
+$('history-close').onclick = () => $('details').close();
+// Recover the one previous answer available from older app versions.
+if (!Array.isArray(state.history)) state.history = [];
+if (!state.history.length && state.session?.rated) {
+  const r = state.session.rated;
+  state.history.push({id:r.id, rating:r.rating || (r.known ? 'known' : 'again'), note:r.note || '', at:Date.now()});
+}
+
+$('peek').onclick = () => { revealed = true; save(); renderStudy(); };
 $('known').onclick = () => rate('known');
 $('again').onclick = () => rate('again');
 $('fuzzy').onclick = () => rate('fuzzy');
-$('undo').onclick = undoRating;
+$('undo').onclick = viewPrevious;
 $('study-goal').onclick = () => {
   show('progress', false);
   $('custom-goal').focus({preventScroll:true});
@@ -472,7 +516,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) show
 window.addEventListener('storage', event => {
   if (event.key === storageKey || event.key === null) {
     state = readState();
-    revealed = false;
+    revealed = !!state.session?.revealed;
     show(page, false);
   }
 });
