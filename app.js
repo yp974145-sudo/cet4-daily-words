@@ -2289,14 +2289,13 @@ function advance() {
   renderStudy();
   window.scrollTo(0, 0);
 }
-function reviewDate(days) {
-  const due = new Date();
+function reviewDate(days, at = Date.now()) {
+  const due = new Date(at);
   due.setDate(due.getDate() + days);
   due.setHours(0, 0, 0, 0);
   return due.getTime();
 }
-function firstReview(previous, rating) {
-  const now = new Date();
+function firstReview(previous, rating, now = new Date()) {
   // Legacy due dates remain untouched until the next real review.
   // Missing historical feedback is never fabricated.
   const card = previous?.fsrs ? {...previous.fsrs,
@@ -2320,6 +2319,7 @@ function rate(rating) {
   if (peeked) rating = 'again';
   const id = session.queue[0];
   const previous = state.records[id];
+  const beforeRecord = previous ? JSON.parse(JSON.stringify(previous)) : null;
   const isNew = !previous;
   const answered = !!state.day.answered[id];
   session.undo = {id, previous:previous ?? null, queue:session.queue.slice(),
@@ -2365,7 +2365,7 @@ function rate(rating) {
   state.records[id].lastRating = rating;
   state.records[id].lastRatedAt = Date.now();
   state.history ??= [];
-  state.history.push({id, rating, note, at:Date.now(), firstOfDay:!answered, peeked, reviewLog});
+  state.history.push({id, rating, note, at:Date.now(), firstOfDay:!answered, peeked, reviewLog, beforeRecord});
   state.history = state.history.slice(-2000);
   save();
   renderStudy();
@@ -2395,9 +2395,94 @@ function showHistory() {
   $('detail-rating').textContent = '当时选择：' + ratingLabels[entry.rating] +
     ' · ' + new Date(entry.at).toLocaleString('zh-CN') + '。' + entry.note;
   $('history-controls').hidden = false;
+  $('history-edit').hidden = false;
+  for (const rating of ['again','fuzzy','known']) {
+    $('edit-' + rating).setAttribute('aria-pressed', entry.rating === rating);
+    $('edit-' + rating).disabled = entry.rating === rating;
+  }
   $('history-older').disabled = historyIndex === 0;
   $('history-newer').disabled = historyIndex === historyEntries.length - 1;
 }
+
+// Corrections replace feedback; they are not additional study attempts.
+function editHistoryRating(rating) {
+  const entry = historyEntries[historyIndex];
+  if (!entry || !['again','fuzzy','known'].includes(rating) ||
+      !state.history.includes(entry) || entry.rating === rating) return;
+  ensureDay();
+  const oldRating = entry.rating;
+  const entries = state.history.filter(e => e.id === entry.id);
+  const start = entries.indexOf(entry);
+  const record = state.records[entry.id];
+  if (!record) return;
+  // Restore the model immediately before this review, then replay later
+  // first-of-day reviews with their original timestamps and corrected grades.
+  if (entry.firstOfDay && entry.reviewLog) {
+    let previous = entry.beforeRecord;
+    if (previous === undefined) {
+      const log = entry.reviewLog;
+      previous = log.state === FSRS.State.New ? null : {fsrs:{
+        ...FSRS.createEmptyCard(new Date(entry.at)),
+        state:log.state, stability:log.stability, difficulty:log.difficulty,
+        due:new Date(log.due), last_review:new Date(entry.at - log.elapsed_days * 86400000),
+        scheduled_days:log.scheduled_days, elapsed_days:log.elapsed_days
+      }};
+    }
+    for (const e of entries.slice(start)) {
+      if (!e.firstOfDay || !e.reviewLog) continue;
+      e.beforeRecord = previous ? JSON.parse(JSON.stringify(previous)) : null;
+      const next = firstReview(previous, e === entry ? rating : e.rating, new Date(e.at));
+      previous = {fsrs:next.card, due:reviewDate(next.days,e.at),
+        scheduledDays:next.days, firstRating:e === entry ? rating : e.rating};
+      e.reviewLog = next.log;
+      e.note = '长期安排已重算 · ' + reviewIntervalLabel(next.days);
+    }
+    Object.assign(record,previous);
+  }
+  entry.originalRating ??= oldRating;
+  entry.rating = rating;
+  entry.editedAt = Date.now();
+  entry.note = '已修改为「' + ratingLabels[rating] + '」 · ' +
+    (entry.firstOfDay && entry.reviewLog
+      ? '已同步重算后续复习'
+      : '此次非长期调度记录，长期计划保持不变');
+  const latest = entries.at(-1);
+  record.lastRating = latest.rating;
+  record.lastRatedAt = latest.at;
+  record.hard = latest.rating !== 'known';
+  record.stage = record.hard ? -1 : 0;
+  const dateKey = at => { const d = new Date(at); return [d.getFullYear(),d.getMonth()+1,d.getDate()].join('-'); };
+  if (dateKey(entry.at) === today()) {
+    const todays = entries.filter(e => dateKey(e.at) === today());
+    state.day.attempts ??= {};
+    state.day.attempts[entry.id] = {count:todays.length,misses:todays.filter(e => e.rating === 'again').length};
+    // Later feedback takes precedence over a correction to an earlier attempt.
+    if (latest === entry) {
+      const session = state.session;
+      const completed = Math.max(0, session.total - session.queue.length);
+      const keepCurrent = !session.rated && session.queue[0] === entry.id;
+      session.queue = session.queue.filter((id,i) => id !== entry.id || (i === 0 && keepCurrent));
+      if (rating === 'known') delete state.day.retry[entry.id];
+      else {
+        state.day.retry[entry.id] = true;
+        if (!keepCurrent) {
+          const gap = rating === 'fuzzy' ? 6 : Math.max(1,4-state.day.attempts[entry.id].misses);
+          // Preserve the card currently being studied.
+          session.queue.splice(Math.min(session.queue.length,Math.max(1,gap)),0,entry.id);
+        }
+      }
+      session.total = completed + session.queue.length;
+      if (session.rated?.id === entry.id) {
+        session.rated.rating = rating;
+        session.rated.note = entry.note;
+      }
+    }
+  }
+  save();
+  renderStudy();
+  showHistory();
+}
+
 function stopAudio() {
   if (playback) {
     playback.audio.pause();
@@ -2480,6 +2565,7 @@ function openDetail(id) {
   stopAudio();
   detailId = id;
   $('history-controls').hidden = true;
+  $('history-edit').hidden = true;
   const record = state.records[id];
   $('detail-rating').textContent = record?.lastRating
     ? '上次选择：' + ratingLabels[record.lastRating] + ' · ' + new Date(record.lastRatedAt).toLocaleString('zh-CN')
@@ -2564,6 +2650,12 @@ const detailRating = document.createElement('p');
 detailRating.id = 'detail-rating';
 detailRating.className = 'hint';
 $('detail-meaning').before(detailRating);
+const historyEdit = document.createElement('div');
+historyEdit.id = 'history-edit';
+historyEdit.hidden = true;
+historyEdit.innerHTML = '<p class="hint">刚才选错了？修改当时的选择（不会增加学习次数）</p><div class="actions"><button type="button" id="edit-again" class="button secondary">忘记</button><button type="button" id="edit-fuzzy" class="button fuzzy">模糊</button><button type="button" id="edit-known" class="button primary">认识</button></div>';
+$('detail-rating').after(historyEdit);
+for (const rating of ['again','fuzzy','known']) $('edit-' + rating).onclick = () => editHistoryRating(rating);
 const historyControls = document.createElement('div');
 historyControls.id = 'history-controls';
 historyControls.className = 'detail-actions';
