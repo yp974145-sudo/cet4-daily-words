@@ -11,7 +11,7 @@
   <script defer src="word-help.js"></script>
   <script defer src="synonyms.js"></script>
   <script defer src="audio-bank.js"></script>
-  <script defer src="app.js?v=6"></script>
+  <script defer src="app.js?v=7"></script>
 </head>
 <body>
   <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -87,7 +87,7 @@
       </div>
       <form id="goal-form" class="goal-form"><label for="custom-goal">自定义</label><input id="custom-goal" type="number" min="0" max="1612" step="1" inputmode="numeric" required><span>个／天</span><button class="button primary" type="submit">保存</button></form>
       <p id="goal-note" role="status">可填 0–1612，填 0 就只复习。</p></div>
-      <div class="panel"><h2>怎样判断记住、怎样复习</h2><p>认识：没看答案，能独立说出主要含义。模糊：回忆费劲，但确实想对了。忘记：想不起来、猜错，或看答案才知道。点击“先看释义”后，本次按忘记记录。当天通过不代表永久记住。</p><p>长期复习采用开源 FSRS-6（ts-fsrs 5.2.3），根据每个词的记忆难度、稳定性、实际间隔和当天首次反馈计算复习日期，目标保留率 90%（模型目标，不是保证）。采用默认参数，尚未针对个人训练；并非墨墨私有算法。</p><p>当天首次选「认识」后，本轮不再重复；选「模糊／忘记」会继续出现，直到能独立回忆并选「认识」。本网页的强化规则：忘记通常隔 3 张卡，反复忘记缩短到 2、1 张；模糊通常隔 6 张。卡片不足时提前出现。当天重复只调整强化，不把刚看完答案的熟悉感当成长久记住。</p><p>每次作答自动保存；重新打开或跨天后，先接着未完成的位置学。查看上一词可以回看当时的选择、音标、发音和助记，不会撤销记录。学习记录保存在当前浏览器，请使用同一个浏览器打开；更换设备、无痕浏览或清理浏览器数据可能导致无法恢复。</p></div>
+      <div class="panel"><h2>怎样判断记住、怎样复习</h2><p>认识：没看答案，能独立说出主要含义。模糊：回忆费劲，但确实想对了。忘记：想不起来、猜错，或看答案才知道。点击“先看释义”后，本次按忘记记录。当天通过不代表永久记住。</p><p>长期复习采用开源 FSRS-6（ts-fsrs 5.2.3），根据每个词的记忆难度、稳定性、实际间隔和当天首次反馈计算复习日期，目标保留率 90%（模型目标，不是保证）。采用默认参数，尚未针对个人训练；并非墨墨私有算法。</p><p>当天首次选「认识」后，本轮不再重复；选「模糊／忘记」会继续出现，直到能独立回忆并选「认识」。本网页的强化规则：忘记通常隔 3 张卡，反复忘记缩短到 2、1 张；模糊通常隔 6 张。卡片不足时提前出现。当天重复只调整强化，不把刚看完答案的熟悉感当成长久记住。</p><p>每次作答自动保存；重新打开或跨天后，先接着未完成的位置学。查看上一词可以回看当时的选择、音标、发音和助记，可以修改选错的结果并同步更新复习安排，不会增加学习次数。学习记录保存在当前浏览器，请使用同一个浏览器打开；更换设备、无痕浏览或清理浏览器数据可能导致无法恢复。</p></div>
       <footer>词汇来源 <a href="https://english-exam.lazynote.cn/cet4/words/stats/frequency/" target="_blank" rel="noopener noreferrer">懒笔记《英语四级高频词总榜》↗</a><br>音标主要来自 <a href="https://github.com/open-dict-data/ipa-dict" target="_blank" rel="noopener noreferrer">IPA Dictionary</a>（基于 CMUdict）· <a href="ipa-license.txt" target="_blank" rel="noopener">许可</a><br>记忆算法 <a href="https://github.com/open-spaced-repetition/ts-fsrs" target="_blank" rel="noopener">FSRS 开源项目</a> · <a href="https://www.maimemo.com/help30" target="_blank" rel="noopener">墨墨公开反馈说明</a></footer>
     </section>
     <p id="storage-note" class="hint" role="status" hidden>当前浏览器无法保存学习记录，刷新后可能丢失进度。</p>
